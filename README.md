@@ -3,7 +3,11 @@
 A privacy-first React/TypeScript utility that turns shipping-label PDFs and
 images into dimensionally accurate commercial label-sheet PDFs.
 
-Production: <https://labels.k17engineering.com>
+LAN deployment: <https://labels.k17engineering.com>
+
+The hosted application is intentionally available only on the K17 local
+network. Its source remains public and open source, but public DNS does not
+publish an address for the hosted application.
 
 ## What it does
 
@@ -33,6 +37,11 @@ npm run build
 
 The production bundle is a static site under `dist/`. There are no API routes,
 accounts, analytics, or backend document processing.
+
+The internal deployment uses `ops/labels.caddy` on the LAN Caddy host and the
+OPNsense Unbound host override described by `ops/add_labels_dns.php`. Caddy's
+DNS-01 ACME configuration provides trusted HTTPS without a public A or CNAME
+record. Requests that do not originate from a private network are rejected.
 
 ## Template data
 

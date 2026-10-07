@@ -1,0 +1,21 @@
+labels.k17engineering.com {
+	encode zstd gzip
+
+	@lan remote_ip private_ranges
+	handle @lan {
+		header {
+			Strict-Transport-Security "max-age=31536000"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "same-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			X-Frame-Options "DENY"
+			-Server
+		}
+
+		root * /srv/k17-label-sheet
+		try_files {path} /index.html
+		file_server
+	}
+
+	respond "This service is available only from the local network." 403
+}
