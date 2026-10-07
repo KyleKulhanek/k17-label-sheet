@@ -307,6 +307,30 @@ export async function generateCalibrationPdf(
     size: 8,
     color: green,
   });
+  p.drawText('Crosshair center on this page:', {
+    x: 30,
+    y: pageHeightIn * PT - 86,
+    size: 9,
+    color: dark,
+  });
+  p.drawText(
+    `${((pageWidthIn * 25.4) / 2).toFixed(2)} mm from both left and right edges`,
+    {
+      x: 30,
+      y: pageHeightIn * PT - 100,
+      size: 9,
+      color: dark,
+    },
+  );
+  p.drawText(
+    `${((pageHeightIn * 25.4) / 2).toFixed(2)} mm from both top and bottom edges`,
+    {
+      x: 30,
+      y: pageHeightIn * PT - 114,
+      size: 9,
+      color: dark,
+    },
+  );
   p.drawText('The outer reference is 1/4 inch from each PDF page edge.', {
     x: 30,
     y: 30,
@@ -380,6 +404,111 @@ export async function generateStockCalibrationPdf(
       });
     }
   }
+  const first = slotRect(template, 0);
+  const last = slotRect(template, template.rows * template.columns - 1);
+  const rulerHalfMm = 6;
+  const drawVerticalBoundaryRuler = (
+    boundaryXIn: number,
+    centerYIn: number,
+    label: string,
+  ) => {
+    const boundaryX = boundaryXIn * PT;
+    const centerY = (template.pageHeightIn - centerYIn) * PT;
+    page.drawLine({
+      start: { x: boundaryX - rulerHalfMm * MM, y: centerY },
+      end: { x: boundaryX + rulerHalfMm * MM, y: centerY },
+      color,
+      thickness: lineWidth,
+      opacity,
+    });
+    for (let value = -5; value <= 5; value++) {
+      const x = boundaryX - value * MM;
+      const tick = value === 0 ? 11 : value % 5 === 0 ? 8 : 5;
+      page.drawLine({
+        start: { x, y: centerY - tick },
+        end: { x, y: centerY + tick },
+        color,
+        thickness: value === 0 ? lineWidth * 1.5 : lineWidth,
+        opacity,
+      });
+      if (value % 2 === 0)
+        page.drawText(String(value), {
+          x: x - 3,
+          y: centerY + 13,
+          size: 5,
+          color,
+          opacity,
+        });
+    }
+    page.drawText(label, {
+      x: Math.max(2, Math.min(template.pageWidthIn * PT - 54, boundaryX - 24)),
+      y: centerY - 22,
+      size: 6,
+      color,
+      opacity,
+    });
+  };
+  const drawHorizontalBoundaryRuler = (
+    boundaryYIn: number,
+    centerXIn: number,
+    label: string,
+  ) => {
+    const boundaryY = (template.pageHeightIn - boundaryYIn) * PT;
+    const centerX = centerXIn * PT;
+    page.drawLine({
+      start: { x: centerX, y: boundaryY - rulerHalfMm * MM },
+      end: { x: centerX, y: boundaryY + rulerHalfMm * MM },
+      color,
+      thickness: lineWidth,
+      opacity,
+    });
+    for (let value = -5; value <= 5; value++) {
+      const y = boundaryY + value * MM;
+      const tick = value === 0 ? 11 : value % 5 === 0 ? 8 : 5;
+      page.drawLine({
+        start: { x: centerX - tick, y },
+        end: { x: centerX + tick, y },
+        color,
+        thickness: value === 0 ? lineWidth * 1.5 : lineWidth,
+        opacity,
+      });
+      if (value % 2 === 0)
+        page.drawText(String(value), {
+          x: centerX + 13,
+          y: y - 2,
+          size: 5,
+          color,
+          opacity,
+        });
+    }
+    page.drawText(label, {
+      x: centerX - 25,
+      y: Math.max(2, Math.min(template.pageHeightIn * PT - 8, boundaryY + 20)),
+      size: 6,
+      color,
+      opacity,
+    });
+  };
+  drawVerticalBoundaryRuler(
+    first.x,
+    first.y + first.height * 0.35,
+    'L: enter edge reading',
+  );
+  drawVerticalBoundaryRuler(
+    last.x + last.width,
+    last.y + last.height * 0.65,
+    'R: enter edge reading',
+  );
+  drawHorizontalBoundaryRuler(
+    first.y,
+    first.x + first.width * 0.35,
+    'T: enter edge reading',
+  );
+  drawHorizontalBoundaryRuler(
+    last.y + last.height,
+    last.x + last.width * 0.65,
+    'B: enter edge reading',
+  );
   return doc.save();
 }
 

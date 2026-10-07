@@ -983,6 +983,9 @@ function CalibrationModal({
   onSave: (c: Calibration) => void;
   onClose: () => void;
 }) {
+  const letterWidthMm = 215.9;
+  const letterHeightMm = 279.4;
+  const roundHundredth = (value: number) => Math.round(value * 100) / 100;
   const [method, setMethod] = useState<'paper' | 'stock'>('paper');
   const [id] = useState(() =>
     current.id === 'none' ? crypto.randomUUID() : current.id,
@@ -990,8 +993,10 @@ function CalibrationModal({
   const [name, setName] = useState(
     current.id === 'none' ? 'My printer' : current.name,
   );
-  const [centerX, setCenterX] = useState(0);
-  const [centerY, setCenterY] = useState(0);
+  const [fromLeft, setFromLeft] = useState(letterWidthMm / 2);
+  const [fromRight, setFromRight] = useState(letterWidthMm / 2);
+  const [fromTop, setFromTop] = useState(letterHeightMm / 2);
+  const [fromBottom, setFromBottom] = useState(letterHeightMm / 2);
   const [spanX, setSpanX] = useState(100);
   const [spanY, setSpanY] = useState(100);
   const [stockId, setStockId] = useState(defaultTemplateId);
@@ -1003,7 +1008,14 @@ function CalibrationModal({
   const stock = templates.find((t) => t.id === stockId) || templates[0];
   const result =
     method === 'paper'
-      ? calibrationFromPlainPaper(id, name, centerX, centerY, spanX, spanY)
+      ? calibrationFromPlainPaper(
+          id,
+          name,
+          fromLeft - letterWidthMm / 2,
+          fromTop - letterHeightMm / 2,
+          spanX,
+          spanY,
+        )
       : calibrationFromStock(
           id,
           name,
@@ -1076,11 +1088,13 @@ function CalibrationModal({
               </li>
               <li>
                 Use calipers, a ruler, or measuring tape to measure the center
-                error and the two nominal 100 mm spans.
+                crosshair from either horizontal edge and either vertical edge,
+                plus the two nominal 100 mm spans.
               </li>
               <li>
-                Positive errors mean right or down. Enter what you observe; the
-                correction is calculated automatically.
+                On Letter paper the center should be <strong>107.95 mm</strong>{' '}
+                from both left and right, and <strong>139.70 mm</strong> from
+                both top and bottom. Paired edge fields update automatically.
               </li>
             </ol>
             <button
@@ -1096,11 +1110,41 @@ function CalibrationModal({
             </button>
             <div className="form-grid">
               {measureField(
-                'Center horizontal error (mm)',
-                centerX,
-                setCenterX,
+                'Crosshair from left edge (mm)',
+                fromLeft,
+                (value) => {
+                  setFromLeft(value);
+                  setFromRight(roundHundredth(letterWidthMm - value));
+                },
+                0.01,
               )}
-              {measureField('Center vertical error (mm)', centerY, setCenterY)}
+              {measureField(
+                'Crosshair from right edge (mm)',
+                fromRight,
+                (value) => {
+                  setFromRight(value);
+                  setFromLeft(roundHundredth(letterWidthMm - value));
+                },
+                0.01,
+              )}
+              {measureField(
+                'Crosshair from top edge (mm)',
+                fromTop,
+                (value) => {
+                  setFromTop(value);
+                  setFromBottom(roundHundredth(letterHeightMm - value));
+                },
+                0.01,
+              )}
+              {measureField(
+                'Crosshair from bottom edge (mm)',
+                fromBottom,
+                (value) => {
+                  setFromBottom(value);
+                  setFromTop(roundHundredth(letterHeightMm - value));
+                },
+                0.01,
+              )}
               {measureField('Measured horizontal 100 mm span', spanX, setSpanX)}
               {measureField('Measured vertical 100 mm span', spanY, setSpanY)}
             </div>
@@ -1143,14 +1187,21 @@ function CalibrationModal({
                 <strong>100% / Actual Size</strong>.
               </li>
               <li>
-                At the outermost label boundaries, measure where each printed
-                guide falls.
+                At the four rulers labeled L, R, T, and B, read the number where
+                the physical label boundary crosses the printed scale.
               </li>
               <li>
-                Enter signed errors: right/down are positive; left/up are
-                negative.
+                Enter those four printed readings below. Offset and scale are
+                calculated automatically.
               </li>
             </ol>
+            {(stock.marginLeftIn === 0 || stock.marginTopIn === 0) && (
+              <div className="calibration-warning">
+                This stock reaches a paper edge. A printer with non-printable
+                margins may clip some outer ruler ticks; use the regular-paper
+                method if that happens.
+              </div>
+            )}
             <button
               className="secondary"
               onClick={async () =>
@@ -1163,19 +1214,11 @@ function CalibrationModal({
               Download label-sheet test
             </button>
             <div className="form-grid">
+              {measureField('L ruler reading (mm)', leftError, setLeftError)}
+              {measureField('R ruler reading (mm)', rightError, setRightError)}
+              {measureField('T ruler reading (mm)', topError, setTopError)}
               {measureField(
-                'Left boundary error (mm)',
-                leftError,
-                setLeftError,
-              )}
-              {measureField(
-                'Right boundary error (mm)',
-                rightError,
-                setRightError,
-              )}
-              {measureField('Top boundary error (mm)', topError, setTopError)}
-              {measureField(
-                'Bottom boundary error (mm)',
+                'B ruler reading (mm)',
                 bottomError,
                 setBottomError,
               )}

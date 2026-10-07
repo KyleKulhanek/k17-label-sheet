@@ -29,7 +29,8 @@ publish an address for the hosted application.
   are rasterized. Raster inputs remain raster inputs.
 - Generates named local printer profiles from either a regular-paper crosshair
   and 100 mm ruler test or stock-specific label-boundary guides. Label-sheet
-  tests support high-contrast black or faint yellow reusable markers.
+  tests support high-contrast black or faint yellow reusable markers and print
+  four numbered millimeter rulers whose boundary readings feed the calculator.
 - Stores only template preferences and calibration settings in local storage.
   Source documents stay in memory and are never uploaded.
 
