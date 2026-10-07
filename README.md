@@ -15,8 +15,13 @@ publish an address for the hosted application.
 - Treats each PDF page as an independent label.
 - Recognizes 4 × 6 inch and 100 × 150 mm label pages and performs conservative
   content-bound crop detection for larger pages.
-- Provides visual manual cropping, rotation, deletion, and drag reordering.
-- Marks used/available physical stickers on a reusable sheet.
+- Automatically detects printable content in PDFs and images, with a direct
+  drag-to-select manual crop editor and cropped live previews.
+- Automatically rotates portrait labels when that fills a landscape stock
+  position better, while retaining explicit manual rotation controls.
+- Scales labels up or down proportionally to fit the selected stock without
+  distortion.
+- Marks each physical sticker available or used with an accessible switch.
 - Includes verified Avery 5126/8126, 5163/8163, 5164/8164, and 5168/8168
   families, searchable aliases, and a validated custom-sheet builder.
 - Preserves PDF vector content with `pdf-lib`; only previews and crop analysis

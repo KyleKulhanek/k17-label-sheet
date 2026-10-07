@@ -35,6 +35,7 @@ export type LabelItem = {
   detectedCrop: Rect;
   cropStatus: 'full page' | 'auto' | 'manual';
   rotation: 0 | 90 | 180 | 270;
+  orientation: 'auto' | 'manual';
 };
 
 export type Calibration = {
