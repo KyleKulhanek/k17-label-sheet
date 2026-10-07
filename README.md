@@ -27,7 +27,9 @@ publish an address for the hosted application.
   families, searchable aliases, and a validated custom-sheet builder.
 - Preserves PDF vector content with `pdf-lib`; only previews and crop analysis
   are rasterized. Raster inputs remain raster inputs.
-- Generates named local printer calibrations and a measurement test page.
+- Generates named local printer profiles from either a regular-paper crosshair
+  and 100 mm ruler test or stock-specific label-boundary guides. Label-sheet
+  tests support high-contrast black or faint yellow reusable markers.
 - Stores only template preferences and calibration settings in local storage.
   Source documents stay in memory and are never uploaded.
 

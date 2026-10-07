@@ -538,7 +538,7 @@ main {
   opacity: 0;
   pointer-events: none;
 }
-.mode-switch i {
+.legend .mode-switch i {
   position: relative;
   width: 34px;
   height: 18px;
@@ -546,7 +546,7 @@ main {
   background: #869189;
   border: 1px solid #6f7971;
 }
-.mode-switch i::after {
+.legend .mode-switch i::after {
   content: '';
   position: absolute;
   left: 2px;
@@ -558,13 +558,13 @@ main {
   box-shadow: 0 1px 3px #0005;
   transition: transform 0.15s;
 }
-.mode-switch input:checked + i {
+.legend .mode-switch input:checked + i {
   background: #288253;
 }
-.mode-switch input:checked + i::after {
+.legend .mode-switch input:checked + i::after {
   transform: translateX(16px);
 }
-.mode-switch input:focus-visible + i {
+.legend .mode-switch input:focus-visible + i {
   outline: 2px solid #182e21;
   outline-offset: 2px;
 }
@@ -838,6 +838,62 @@ footer a {
 }
 .calibration-modal > .secondary {
   margin-bottom: 18px;
+}
+.calibration-modal {
+  width: min(820px, 96vw);
+}
+.calibration-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.calibration-methods button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid #c7d0c7;
+  background: white;
+  padding: 12px;
+  color: var(--ink);
+}
+.calibration-methods button.selected {
+  border-color: #2a8052;
+  background: #eaf5eb;
+  box-shadow: inset 3px 0 #2a8052;
+}
+.calibration-methods span {
+  color: #68736b;
+  font-size: 9px;
+}
+.profile-name {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 14px;
+  font-size: 10px;
+  color: #5e6b62;
+}
+.profile-name input,
+.calibration-workflow select {
+  height: 38px;
+  border: 1px solid #c8d0c7;
+  background: white;
+  padding: 0 9px;
+}
+.calibration-workflow > .secondary {
+  margin-bottom: 16px;
+}
+.calibration-result {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid #b9cdbd;
+  background: #edf6ed;
+  font:
+    9px ui-monospace,
+    monospace;
 }
 @media (max-width: 1050px) {
   .workspace-grid {

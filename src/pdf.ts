@@ -91,6 +91,8 @@ export async function generateSheetPdf(
   if (!slots.length)
     throw new Error('Mark at least one sheet position as available.');
   const pdfCache = new Map<string, PDFDocument>();
+  const pageWidthPt = template.pageWidthIn * PT;
+  const pageHeightPt = template.pageHeightIn * PT;
   for (
     let offset = 0;
     offset < items.length || offset === 0;
@@ -110,12 +112,17 @@ export async function generateSheetPdf(
       const cropW = item.widthPt * item.crop.width;
       const cropH = item.heightPt * item.crop.height;
       const fit = fitRect(cropW, cropH, targetW, targetH, rotation);
-      const boxX = s.x * PT + calibration.offsetXmm * MM;
-      const boxY =
-        (template.pageHeightIn - s.y - s.height) * PT -
+      const boxX =
+        pageWidthPt / 2 +
+        (s.x * PT - pageWidthPt / 2) * calibration.scaleX +
+        calibration.offsetXmm * MM;
+      const boxTop =
+        pageHeightPt / 2 +
+        (s.y * PT - pageHeightPt / 2) * calibration.scaleY +
         calibration.offsetYmm * MM;
-      const x = boxX + (s.width * PT - fit.width) / 2;
-      const y = boxY + (s.height * PT - fit.height) / 2;
+      const boxY = pageHeightPt - boxTop - targetH;
+      const x = boxX + (targetW - fit.width) / 2;
+      const y = boxY + (targetH - fit.height) / 2;
       if (item.kind === 'pdf') {
         let src = pdfCache.get(item.filename);
         if (!src) {
@@ -257,6 +264,33 @@ export async function generateCalibrationPdf(
       thickness: 0.4,
     });
   }
+  const halfSpan = 50 * MM;
+  p.drawLine({
+    start: { x: cx - halfSpan, y: cy },
+    end: { x: cx + halfSpan, y: cy },
+    color: green,
+    thickness: 1.2,
+  });
+  p.drawLine({
+    start: { x: cx, y: cy - halfSpan },
+    end: { x: cx, y: cy + halfSpan },
+    color: green,
+    thickness: 1.2,
+  });
+  for (const x of [cx - halfSpan, cx + halfSpan])
+    p.drawLine({
+      start: { x, y: cy - 12 },
+      end: { x, y: cy + 12 },
+      color: green,
+      thickness: 1.2,
+    });
+  for (const y of [cy - halfSpan, cy + halfSpan])
+    p.drawLine({
+      start: { x: cx - 12, y },
+      end: { x: cx + 12, y },
+      color: green,
+      thickness: 1.2,
+    });
   p.drawText('K17 printer calibration — print at 100% / Actual Size', {
     x: 30,
     y: pageHeightIn * PT - 48,
@@ -264,9 +298,15 @@ export async function generateCalibrationPdf(
     color: dark,
   });
   p.drawText(
-    'Measure the crosshair shift from page center in millimeters, then enter X and Y offsets in the app.',
+    'Record the signed center error in millimeters: right and down are positive.',
     { x: 30, y: pageHeightIn * PT - 66, size: 8, color: dark },
   );
+  p.drawText('Green end marks are exactly 100 mm apart.', {
+    x: cx - 78,
+    y: cy + 16,
+    size: 8,
+    color: green,
+  });
   p.drawText('The outer reference is 1/4 inch from each PDF page edge.', {
     x: 30,
     y: 30,
@@ -274,6 +314,143 @@ export async function generateCalibrationPdf(
     color: dark,
   });
   return doc.save();
+}
+
+export async function generateStockCalibrationPdf(
+  template: SheetTemplate,
+  marker: 'black' | 'yellow',
+) {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([
+    template.pageWidthIn * PT,
+    template.pageHeightIn * PT,
+  ]);
+  const color =
+    marker === 'yellow' ? rgb(0.95, 0.78, 0.08) : rgb(0.08, 0.1, 0.08);
+  const opacity = marker === 'yellow' ? 0.42 : 0.9;
+  const lineWidth = marker === 'yellow' ? 0.45 : 0.7;
+  for (let i = 0; i < template.rows * template.columns; i++) {
+    const s = slotRect(template, i);
+    const x = s.x * PT;
+    const y = (template.pageHeightIn - s.y - s.height) * PT;
+    const w = s.width * PT;
+    const h = s.height * PT;
+    page.drawRectangle({
+      x,
+      y,
+      width: w,
+      height: h,
+      borderColor: color,
+      borderWidth: lineWidth,
+      opacity,
+    });
+    const tick = Math.min(12, w / 8, h / 8);
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    for (const edgeY of [y, y + h]) {
+      page.drawLine({
+        start: { x: cx - tick, y: edgeY },
+        end: { x: cx + tick, y: edgeY },
+        color,
+        thickness: lineWidth,
+        opacity,
+      });
+      page.drawLine({
+        start: { x: cx, y: edgeY - tick },
+        end: { x: cx, y: edgeY + tick },
+        color,
+        thickness: lineWidth,
+        opacity,
+      });
+    }
+    for (const edgeX of [x, x + w]) {
+      page.drawLine({
+        start: { x: edgeX, y: cy - tick },
+        end: { x: edgeX, y: cy + tick },
+        color,
+        thickness: lineWidth,
+        opacity,
+      });
+      page.drawLine({
+        start: { x: edgeX - tick, y: cy },
+        end: { x: edgeX + tick, y: cy },
+        color,
+        thickness: lineWidth,
+        opacity,
+      });
+    }
+  }
+  return doc.save();
+}
+
+export function calibrationFromPlainPaper(
+  id: string,
+  name: string,
+  centerErrorXmm: number,
+  centerErrorYmm: number,
+  observedSpanXmm: number,
+  observedSpanYmm: number,
+): Calibration {
+  const scaleX = observedSpanXmm > 0 ? 100 / observedSpanXmm : 1;
+  const scaleY = observedSpanYmm > 0 ? 100 / observedSpanYmm : 1;
+  return {
+    id,
+    name,
+    offsetXmm: -centerErrorXmm * scaleX,
+    offsetYmm: -centerErrorYmm * scaleY,
+    scaleX,
+    scaleY,
+  };
+}
+
+function axisCorrection(
+  firstMm: number,
+  lastMm: number,
+  pageCenterMm: number,
+  firstErrorMm: number,
+  lastErrorMm: number,
+) {
+  const span = lastMm - firstMm;
+  const printerScale = 1 + (lastErrorMm - firstErrorMm) / span;
+  const scale = printerScale > 0 ? 1 / printerScale : 1;
+  const printerOffset = firstErrorMm - (printerScale - 1) * firstMm;
+  const offset = -printerOffset * scale - pageCenterMm * (1 - scale);
+  return { scale, offset };
+}
+
+export function calibrationFromStock(
+  id: string,
+  name: string,
+  template: SheetTemplate,
+  leftErrorMm: number,
+  rightErrorMm: number,
+  topErrorMm: number,
+  bottomErrorMm: number,
+): Calibration {
+  const first = slotRect(template, 0);
+  const last = slotRect(template, template.rows * template.columns - 1);
+  const x = axisCorrection(
+    first.x * 25.4,
+    (last.x + last.width) * 25.4,
+    (template.pageWidthIn * 25.4) / 2,
+    leftErrorMm,
+    rightErrorMm,
+  );
+  const y = axisCorrection(
+    first.y * 25.4,
+    (last.y + last.height) * 25.4,
+    (template.pageHeightIn * 25.4) / 2,
+    topErrorMm,
+    bottomErrorMm,
+  );
+  return {
+    id,
+    name,
+    offsetXmm: x.offset,
+    offsetYmm: y.offset,
+    scaleX: x.scale,
+    scaleY: y.scale,
+  };
 }
 
 export function downloadBytes(bytes: Uint8Array, filename: string) {

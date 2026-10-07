@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { fitRect, resolveRotation } from './pdf';
+import {
+  calibrationFromPlainPaper,
+  calibrationFromStock,
+  fitRect,
+  resolveRotation,
+} from './pdf';
+import { BUILTIN_TEMPLATES } from './templates';
 import type { LabelItem } from './types';
 
 describe('label fit', () => {
@@ -28,5 +34,31 @@ describe('label fit', () => {
     expect(
       resolveRotation({ ...item, orientation: 'manual' }, 8.5 * 72, 5.5 * 72),
     ).toBe(0);
+  });
+});
+
+describe('calibration calculations', () => {
+  it('converts observed plain-paper errors into inverse corrections', () => {
+    const c = calibrationFromPlainPaper('id', 'Printer', 2, -1, 102, 98);
+    expect(c.scaleX).toBeCloseTo(100 / 102, 6);
+    expect(c.scaleY).toBeCloseTo(100 / 98, 6);
+    expect(c.offsetXmm).toBeCloseTo(-2 * (100 / 102), 6);
+    expect(c.offsetYmm).toBeCloseTo(100 / 98, 6);
+  });
+
+  it('corrects a uniform label-sheet boundary shift without changing scale', () => {
+    const c = calibrationFromStock(
+      'id',
+      'Printer',
+      BUILTIN_TEMPLATES[0],
+      2,
+      2,
+      3,
+      3,
+    );
+    expect(c.scaleX).toBeCloseTo(1, 6);
+    expect(c.scaleY).toBeCloseTo(1, 6);
+    expect(c.offsetXmm).toBeCloseTo(-2, 6);
+    expect(c.offsetYmm).toBeCloseTo(-3, 6);
   });
 });

@@ -15,9 +15,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { importFiles } from './importer';
 import {
+  calibrationFromPlainPaper,
+  calibrationFromStock,
   downloadBytes,
   generateCalibrationPdf,
   generateSheetPdf,
+  generateStockCalibrationPdf,
   resolveRotation,
 } from './pdf';
 import {
@@ -954,6 +957,8 @@ export default function App() {
       {showCalibration && (
         <CalibrationModal
           current={calibration}
+          templates={allTemplates}
+          defaultTemplateId={template.id}
           onSave={(c) => {
             saveCalibration(c);
             setShowCalibration(false);
@@ -967,31 +972,60 @@ export default function App() {
 
 function CalibrationModal({
   current,
+  templates,
+  defaultTemplateId,
   onSave,
   onClose,
 }: {
   current: Calibration;
+  templates: SheetTemplate[];
+  defaultTemplateId: string;
   onSave: (c: Calibration) => void;
   onClose: () => void;
 }) {
-  const [c, setC] = useState<Calibration>(
-    current.id === 'none'
-      ? { ...DEFAULT_CAL, id: crypto.randomUUID(), name: 'My printer' }
-      : current,
+  const [method, setMethod] = useState<'paper' | 'stock'>('paper');
+  const [id] = useState(() =>
+    current.id === 'none' ? crypto.randomUUID() : current.id,
   );
-  const field = (key: keyof Calibration, label: string, step: number) => (
+  const [name, setName] = useState(
+    current.id === 'none' ? 'My printer' : current.name,
+  );
+  const [centerX, setCenterX] = useState(0);
+  const [centerY, setCenterY] = useState(0);
+  const [spanX, setSpanX] = useState(100);
+  const [spanY, setSpanY] = useState(100);
+  const [stockId, setStockId] = useState(defaultTemplateId);
+  const [marker, setMarker] = useState<'black' | 'yellow'>('yellow');
+  const [leftError, setLeftError] = useState(0);
+  const [rightError, setRightError] = useState(0);
+  const [topError, setTopError] = useState(0);
+  const [bottomError, setBottomError] = useState(0);
+  const stock = templates.find((t) => t.id === stockId) || templates[0];
+  const result =
+    method === 'paper'
+      ? calibrationFromPlainPaper(id, name, centerX, centerY, spanX, spanY)
+      : calibrationFromStock(
+          id,
+          name,
+          stock,
+          leftError,
+          rightError,
+          topError,
+          bottomError,
+        );
+  const measureField = (
+    label: string,
+    value: number,
+    setter: (value: number) => void,
+    step = 0.1,
+  ) => (
     <label>
       {label}
       <input
-        type={key === 'name' ? 'text' : 'number'}
+        type="number"
         step={step}
-        value={c[key]}
-        onChange={(e) =>
-          setC({
-            ...c,
-            [key]: key === 'name' ? e.target.value : Number(e.target.value),
-          })
-        }
+        value={value}
+        onChange={(event) => setter(Number(event.target.value))}
       />
     </label>
   );
@@ -1010,43 +1044,160 @@ function CalibrationModal({
           </div>
           <button onClick={onClose}>×</button>
         </div>
-        <ol>
-          <li>
-            Download and print the test page at{' '}
-            <strong>100% / Actual Size</strong>.
-          </li>
-          <li>
-            Measure the printed center crosshair’s horizontal and vertical shift
-            in millimeters.
-          </li>
-          <li>
-            Enter the opposite correction below. Use scale only when a measured
-            100 mm span is consistently too large or small.
-          </li>
-        </ol>
-        <button
-          className="secondary"
-          onClick={async () =>
-            downloadBytes(
-              await generateCalibrationPdf(),
-              'K17-printer-calibration.pdf',
-            )
-          }
-        >
-          Download calibration page
-        </button>
-        <div className="form-grid">
-          {field('name', 'Profile name', 1)}
-          {field('offsetXmm', 'Horizontal offset (mm)', 0.1)}
-          {field('offsetYmm', 'Vertical offset (mm)', 0.1)}
-          {field('scaleX', 'Horizontal scale (1.000)', 0.001)}
-          {field('scaleY', 'Vertical scale (1.000)', 0.001)}
+        <div className="calibration-methods">
+          <button
+            className={method === 'paper' ? 'selected' : ''}
+            onClick={() => setMethod('paper')}
+          >
+            <strong>Regular paper</strong>
+            <span>Measure a center crosshair and two 100 mm rulers.</span>
+          </button>
+          <button
+            className={method === 'stock' ? 'selected' : ''}
+            onClick={() => setMethod('stock')}
+          >
+            <strong>Label sheet</strong>
+            <span>Compare printed guides directly with label boundaries.</span>
+          </button>
+        </div>
+        <label className="profile-name">
+          Profile name
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        {method === 'paper' ? (
+          <div className="calibration-workflow">
+            <ol>
+              <li>
+                Download and print on regular paper at{' '}
+                <strong>100% / Actual Size</strong>.
+              </li>
+              <li>
+                Use calipers, a ruler, or measuring tape to measure the center
+                error and the two nominal 100 mm spans.
+              </li>
+              <li>
+                Positive errors mean right or down. Enter what you observe; the
+                correction is calculated automatically.
+              </li>
+            </ol>
+            <button
+              className="secondary"
+              onClick={async () =>
+                downloadBytes(
+                  await generateCalibrationPdf(),
+                  'K17-plain-paper-calibration.pdf',
+                )
+              }
+            >
+              Download plain-paper test
+            </button>
+            <div className="form-grid">
+              {measureField(
+                'Center horizontal error (mm)',
+                centerX,
+                setCenterX,
+              )}
+              {measureField('Center vertical error (mm)', centerY, setCenterY)}
+              {measureField('Measured horizontal 100 mm span', spanX, setSpanX)}
+              {measureField('Measured vertical 100 mm span', spanY, setSpanY)}
+            </div>
+          </div>
+        ) : (
+          <div className="calibration-workflow">
+            <div className="form-grid">
+              <label>
+                Label stock
+                <select
+                  value={stock.id}
+                  onChange={(event) => setStockId(event.target.value)}
+                >
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.manufacturer} {t.products.join(' / ') || t.name} —{' '}
+                      {t.rows * t.columns} labels
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Marker style
+                <select
+                  value={marker}
+                  onChange={(event) =>
+                    setMarker(event.target.value as 'black' | 'yellow')
+                  }
+                >
+                  <option value="yellow">Faint yellow — reusable labels</option>
+                  <option value="black">
+                    Black and white — highest contrast
+                  </option>
+                </select>
+              </label>
+            </div>
+            <ol>
+              <li>
+                Download and print on the selected label stock at{' '}
+                <strong>100% / Actual Size</strong>.
+              </li>
+              <li>
+                At the outermost label boundaries, measure where each printed
+                guide falls.
+              </li>
+              <li>
+                Enter signed errors: right/down are positive; left/up are
+                negative.
+              </li>
+            </ol>
+            <button
+              className="secondary"
+              onClick={async () =>
+                downloadBytes(
+                  await generateStockCalibrationPdf(stock, marker),
+                  `K17-${stock.id}-calibration.pdf`,
+                )
+              }
+            >
+              Download label-sheet test
+            </button>
+            <div className="form-grid">
+              {measureField(
+                'Left boundary error (mm)',
+                leftError,
+                setLeftError,
+              )}
+              {measureField(
+                'Right boundary error (mm)',
+                rightError,
+                setRightError,
+              )}
+              {measureField('Top boundary error (mm)', topError, setTopError)}
+              {measureField(
+                'Bottom boundary error (mm)',
+                bottomError,
+                setBottomError,
+              )}
+            </div>
+          </div>
+        )}
+        <div className="calibration-result">
+          <strong>Calculated correction</strong>
+          <span>
+            X {result.offsetXmm.toFixed(2)} mm · Y {result.offsetYmm.toFixed(2)}{' '}
+            mm · Scale {result.scaleX.toFixed(4)} × {result.scaleY.toFixed(4)}
+          </span>
         </div>
         <div className="modal-actions">
           <button className="secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="primary" onClick={() => onSave(c)}>
+          <button
+            className="primary"
+            disabled={!name.trim() || spanX <= 0 || spanY <= 0}
+            onClick={() => onSave(result)}
+          >
             Save profile
           </button>
         </div>
