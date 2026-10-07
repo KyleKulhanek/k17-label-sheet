@@ -24,22 +24,39 @@ export function contentBounds(
   height: number,
 ): Rect | null {
   const { data } = ctx.getImageData(0, 0, width, height);
+  const columnInk = new Uint32Array(width);
+  const rowInk = new Uint32Array(height);
+  const step = 2;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const i = (y * width + x) * 4;
+      const alpha = data[i + 3] / 255;
+      const visibleAverage =
+        ((data[i] + data[i + 1] + data[i + 2]) / 3) * alpha + 255 * (1 - alpha);
+      if (255 - visibleAverage > 28) {
+        columnInk[x]++;
+        rowInk[y]++;
+      }
+    }
+  }
+  // Projection thresholds reject sparse screenshot chrome, isolated specks, and
+  // antialiasing while retaining text, borders, and barcode runs.
+  const columnThreshold = Math.max(2, Math.floor((height / step) * 0.02));
+  const rowThreshold = Math.max(2, Math.floor((width / step) * 0.02));
   let minX = width,
     minY = height,
     maxX = -1,
     maxY = -1;
-  for (let y = 0; y < height; y += 2) {
-    for (let x = 0; x < width; x += 2) {
-      const i = (y * width + x) * 4;
-      const darkness = 255 - (data[i] + data[i + 1] + data[i + 2]) / 3;
-      if (darkness > 28) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
+  for (let x = 0; x < width; x += step)
+    if (columnInk[x] >= columnThreshold) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
     }
-  }
+  for (let y = 0; y < height; y += step)
+    if (rowInk[y] >= rowThreshold) {
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
   if (maxX < 0) return null;
   const padX = Math.max(8, (maxX - minX) * 0.035);
   const padY = Math.max(8, (maxY - minY) * 0.035);

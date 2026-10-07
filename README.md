@@ -21,7 +21,8 @@ publish an address for the hosted application.
   position better, while retaining explicit manual rotation controls.
 - Scales labels up or down proportionally to fit the selected stock without
   distortion.
-- Marks each physical sticker available or used with an accessible switch.
+- Uses one global Used/Available selection mode: by default click the positions
+  already used, or switch modes and click only the positions still available.
 - Includes verified Avery 5126/8126, 5163/8163, 5164/8164, and 5168/8168
   families, searchable aliases, and a validated custom-sheet builder.
 - Preserves PDF vector content with `pdf-lib`; only previews and crop analysis

@@ -1,5 +1,6 @@
 import {
   useMemo,
+  useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -59,28 +60,45 @@ function CropPreview({
   alt?: string;
   rotation?: number;
 }) {
-  const { crop } = item;
-  const turned = rotation % 180 !== 0;
+  const [url, setUrl] = useState(item.previewUrl);
+  const cropKey = `${item.previewUrl}:${item.crop.x}:${item.crop.y}:${item.crop.width}:${item.crop.height}:${rotation}`;
+  useEffect(() => {
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      const sourceW = Math.max(1, image.naturalWidth * item.crop.width);
+      const sourceH = Math.max(1, image.naturalHeight * item.crop.height);
+      const scale = Math.min(1, 800 / Math.max(sourceW, sourceH));
+      const w = Math.max(1, Math.round(sourceW * scale));
+      const h = Math.max(1, Math.round(sourceH * scale));
+      const turned = rotation % 180 !== 0;
+      const canvas = document.createElement('canvas');
+      canvas.width = turned ? h : w;
+      canvas.height = turned ? w : h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.drawImage(
+        image,
+        item.crop.x * image.naturalWidth,
+        item.crop.y * image.naturalHeight,
+        sourceW,
+        sourceH,
+        -w / 2,
+        -h / 2,
+        w,
+        h,
+      );
+      if (!cancelled) setUrl(canvas.toDataURL('image/jpeg', 0.86));
+    };
+    image.src = item.previewUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [cropKey, item.crop, item.previewUrl, rotation]);
   return (
-    <span
-      className="cropped-preview"
-      style={{
-        aspectRatio: turned
-          ? `${item.heightPt * crop.height}/${item.widthPt * crop.width}`
-          : `${item.widthPt * crop.width}/${item.heightPt * crop.height}`,
-      }}
-    >
-      <img
-        src={item.previewUrl}
-        alt={alt}
-        style={{
-          width: `${100 / crop.width}%`,
-          height: `${100 / crop.height}%`,
-          left: `${(-crop.x * 100) / crop.width}%`,
-          top: `${(-crop.y * 100) / crop.height}%`,
-          transform: `rotate(${rotation}deg)`,
-        }}
-      />
+    <span className="cropped-preview">
+      <img src={url} alt={alt} />
     </span>
   );
 }
@@ -448,7 +466,10 @@ export default function App() {
   );
   const template =
     allTemplates.find((t) => t.id === templateId) || allTemplates[0];
-  const [unavailable, setUnavailable] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState<'used' | 'available'>(
+    'used',
+  );
+  const [selectedSlots, setSelectedSlots] = useState<Set<number>>(new Set());
   const [cropItem, setCropItem] = useState<LabelItem | null>(null);
   const [showCustom, setShowCustom] = useState(false);
   const [showCalibration, setShowCalibration] = useState(false);
@@ -457,13 +478,22 @@ export default function App() {
   );
   const [calId, setCalId] = useState('none');
   const calibration = calibrations.find((c) => c.id === calId) || DEFAULT_CAL;
-  const availableSlots = useMemo(
+  const allSlots = useMemo(
+    () => Array.from({ length: template.rows * template.columns }, (_, i) => i),
+    [template],
+  );
+  const unavailable = useMemo(
     () =>
-      Array.from(
-        { length: template.rows * template.columns },
-        (_, i) => i,
-      ).filter((i) => !unavailable.has(i)),
-    [template, unavailable],
+      new Set(
+        selectionMode === 'used'
+          ? selectedSlots
+          : allSlots.filter((i) => !selectedSlots.has(i)),
+      ),
+    [allSlots, selectedSlots, selectionMode],
+  );
+  const availableSlots = useMemo(
+    () => allSlots.filter((i) => !unavailable.has(i)),
+    [allSlots, unavailable],
   );
   const filteredTemplates = allTemplates.filter((t) =>
     templateSearchText(t).includes(query.toLowerCase()),
@@ -498,10 +528,10 @@ export default function App() {
   const changeTemplate = (id: string) => {
     setTemplateId(id);
     localStorage.setItem('k17-template', id);
-    setUnavailable(new Set());
+    setSelectedSlots(new Set());
   };
   const toggleSlot = (i: number) =>
-    setUnavailable((old) => {
+    setSelectedSlots((old) => {
       const n = new Set(old);
       if (n.has(i)) n.delete(i);
       else n.add(i);
@@ -739,18 +769,18 @@ export default function App() {
             <div className="panel-title">
               <div>
                 <span className="step">03</span>
-                <h3>Mark available labels</h3>
+                <h3>Mark sheet positions</h3>
               </div>
               <button
                 className="text-button"
-                onClick={() => setUnavailable(new Set())}
+                onClick={() => setSelectedSlots(new Set())}
               >
-                Reset all
+                Clear selection
               </button>
             </div>
             <p className="hint">
-              Click stickers that have already been used. Green positions will
-              receive labels in queue order.
+              Choose what clicks mean below, then click the matching positions
+              on your physical sheet.
             </p>
             <div className="sheet-wrap">
               <div
@@ -778,6 +808,17 @@ export default function App() {
                           width: pct(s.width / template.pageWidthIn),
                           height: pct(s.height / template.pageHeightIn),
                         }}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={selectedSlots.has(i)}
+                        aria-label={`Slot ${i + 1}: ${unavailableHere ? 'used' : 'available'}`}
+                        onClick={() => toggleSlot(i)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            toggleSlot(i);
+                          }
+                        }}
                       >
                         <span className="slot-num">{i + 1}</span>
                         {assigned ? (
@@ -797,17 +838,6 @@ export default function App() {
                             {unavailableHere ? 'USED' : 'AVAILABLE'}
                           </span>
                         )}
-                        <label className="slot-switch">
-                          <input
-                            type="checkbox"
-                            role="switch"
-                            checked={!unavailableHere}
-                            aria-label={`Slot ${i + 1} ${unavailableHere ? 'used' : 'available'}`}
-                            onChange={() => toggleSlot(i)}
-                          />
-                          <span aria-hidden="true" />
-                          <b>{unavailableHere ? 'Used' : 'Available'}</b>
-                        </label>
                       </div>
                     );
                   },
@@ -815,17 +845,34 @@ export default function App() {
               </div>
             </div>
             <div className="legend">
-              <span>
-                <i className="green" /> Available
-              </span>
-              <span>
-                <i className="gray" /> Used
-              </span>
+              <div className="mode-control">
+                <span>Clicks mark used</span>
+                <label className="mode-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={selectionMode === 'available'}
+                    aria-label="Switch between marking used and available positions"
+                    onChange={(event) => {
+                      setSelectionMode(
+                        event.target.checked ? 'available' : 'used',
+                      );
+                      setSelectedSlots(new Set());
+                    }}
+                  />
+                  <i aria-hidden="true" />
+                </label>
+                <span>Clicks mark available</span>
+              </div>
               <strong>
                 {availableSlots.length} of {template.rows * template.columns}{' '}
                 open
               </strong>
             </div>
+            <p className="mode-help">
+              Default: click labels already used. Switch modes when it is faster
+              to click only the labels still available.
+            </p>
           </section>
         </div>
 

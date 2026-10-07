@@ -280,6 +280,7 @@ main {
   padding: 0;
 }
 .thumb {
+  position: relative;
   width: 58px;
   height: 46px;
   background: #e8ebe6;
@@ -456,6 +457,7 @@ main {
     8px ui-monospace,
     monospace;
   padding: 4px;
+  cursor: pointer;
 }
 .slot:hover {
   outline: 2px solid #1c7447;
@@ -485,86 +487,23 @@ main {
   padding: 1px 3px;
   font-size: 8px;
 }
-.slot-state {
-  margin-bottom: 25px;
-}
-.slot-switch {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  bottom: 7px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 5px;
-  background: #fffffff0;
-  border: 1px solid #cbd3ca;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.slot-switch input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.slot-switch > span {
-  position: relative;
-  width: 24px;
-  height: 13px;
-  border-radius: 9px;
-  background: #a9b0aa;
-  transition: background 0.15s;
-}
-.slot-switch > span::after {
-  content: '';
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  top: 2px;
-  left: 2px;
-  border-radius: 50%;
-  background: white;
-  transition: transform 0.15s;
-  box-shadow: 0 1px 2px #0004;
-}
-.slot-switch input:checked + span {
-  background: #288253;
-}
-.slot-switch input:checked + span::after {
-  transform: translateX(11px);
-}
-.slot-switch input:focus-visible + span {
-  outline: 2px solid #182e21;
-  outline-offset: 2px;
-}
-.slot-switch b {
-  font-size: 7px;
-  text-transform: uppercase;
-}
 .cropped-preview {
-  position: relative;
+  position: absolute;
+  inset: 8px;
   display: block;
   overflow: hidden;
-  max-width: 100%;
-  max-height: 100%;
 }
 .cropped-preview img {
-  position: absolute;
-  max-width: none;
-  max-height: none;
-  object-fit: fill;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   opacity: 0.88;
-  transform-origin: center;
 }
 .thumb .cropped-preview {
-  width: 100%;
-  max-height: 76px;
+  inset: 4px;
 }
 .slot > .cropped-preview {
-  width: 100%;
-  max-height: calc(100% - 26px);
-  margin-bottom: 24px;
+  inset: 6px;
 }
 .orientation-note {
   position: absolute;
@@ -583,6 +522,51 @@ main {
   margin-top: 12px;
   font-size: 9px;
   color: #69736b;
+}
+.mode-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4e5d53;
+}
+.mode-switch {
+  display: inline-flex;
+  cursor: pointer;
+}
+.mode-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.mode-switch i {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 12px;
+  background: #869189;
+  border: 1px solid #6f7971;
+}
+.mode-switch i::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px #0005;
+  transition: transform 0.15s;
+}
+.mode-switch input:checked + i {
+  background: #288253;
+}
+.mode-switch input:checked + i::after {
+  transform: translateX(16px);
+}
+.mode-switch input:focus-visible + i {
+  outline: 2px solid #182e21;
+  outline-offset: 2px;
 }
 .legend span {
   display: flex;
@@ -605,6 +589,12 @@ main {
 .legend strong {
   margin-left: auto;
   color: #1f5638;
+}
+.mode-help {
+  margin: 7px 0 0;
+  color: #758077;
+  font-size: 8px;
+  line-height: 1.4;
 }
 .output-bar {
   display: flex;
