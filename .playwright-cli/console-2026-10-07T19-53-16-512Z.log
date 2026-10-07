@@ -1,0 +1,7 @@
+[    6532ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-UJARE54I.js?v=4ec1a3e4:21608
+[    7207ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/favicon.ico:0
+[   35733ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-UJARE54I.js?v=4ec1a3e4:21608
+[   69198ms] [LOG] Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided. @ http://127.0.0.1:5173/node_modules/pdfjs-dist/build/pdf.worker.min.mjs:20
+[   69206ms] [LOG] Warning: Cannot load system font: ZapfDingbats, installing it could help to improve PDF rendering. @ http://127.0.0.1:5173/node_modules/.vite/deps/pdfjs-dist.js?v=1800c9c8:434
+[   69326ms] [LOG] Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided. @ http://127.0.0.1:5173/node_modules/pdfjs-dist/build/pdf.worker.min.mjs:20
+[   69330ms] [LOG] Warning: Cannot load system font: Symbol, installing it could help to improve PDF rendering. @ http://127.0.0.1:5173/node_modules/.vite/deps/pdfjs-dist.js?v=1800c9c8:434
